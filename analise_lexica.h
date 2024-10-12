@@ -4,20 +4,19 @@
 #include <stdio.h>
 
 #define MAX_TOKEN_LENGTH 100
-#define NUM_PALAVRAS_RESERVADAS 18
+#define NUM_PALAVRAS_RESERVADAS 13
 
 typedef enum {
   PALAVRA_RESERVADA,
   IDENTIFICADOR,
-  NUMERO,
   ATRIBUICAO,
   RELACIONAL,
   ARITMETICO,
   PONTUACAO,
   ASSOCIACAO,
-  COMENTARIO,
   ESPACO,
   ERRO,
+  INT_CONST,
   CHAR_CONST,
   FLOAT_CONST
 } TipoToken;
@@ -43,7 +42,7 @@ typedef struct {
 
 void adicionar_token(TabelaSimbolos *tabela, Token token);
 void imprimir_token(Token token);
-int transicao(int estado, char simbolo);
+int transicao(int estado, char simbolo, char lookahead);
 int processar(const char *entrada, TabelaSimbolos *tabela, int coment_aberto[]);
 void erro_lexico(char simbolo, int linha, int coluna);
 int e_palavra_reservada(const char *lexema);

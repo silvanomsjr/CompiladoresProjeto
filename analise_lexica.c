@@ -5,10 +5,9 @@
 #include <string.h>
 
 const char *palavras_reservadas[] = {
-    "main", "begin", "end", "int",    "char",  "float", "if", "then",
-    "else", "while", "do",  "repeat", "until", ":",     ";",  ",",
-    ":=",   "(",     ")",   "->",     "==",    "!=",    "<",  ">",
-    "<=",   ">=",    "+",   "-",      "*",     "/",     "**"};
+    "main", "begin", "end",   "int", "char",   "float", "if",
+    "then", "else",  "while", "do",  "repeat", "until",
+};
 
 // Adiciona um token à Tabela de Símbolos
 void adicionar_token(TabelaSimbolos *tabela, Token token) {
@@ -26,11 +25,10 @@ void adicionar_token(TabelaSimbolos *tabela, Token token) {
 
 // Imprime um token no console
 void imprimir_token(Token token) {
-  const char *tipos[] = {
-      "Palavra Reservada", "Identificador", "Numero",    "Atribuicao",
-      "Relacional",        "Aritmetico",    "Pontuacao", "Associacao",
-      "Comentario",        "Espaco",        "Erro",      "CHAR_CONST",
-      "FLOAT_CONST"};
+  const char *tipos[] = {"Palavra Reservada", "Identificador", "Atribuicao",
+                         "Relacional",        "Aritmetico",    "Pontuacao",
+                         "Associacao",        "Espaco",        "Erro",
+                         "INT_CONST",         "CHAR_CONST",    "FLOAT_CONST"};
   printf("Token: Tipo= %s, Lexema= %s, Linha= %d, Coluna= %d",
          tipos[token.tipo_token], token.lexema, token.linha, token.coluna);
   if (token.tipo_dado == INT)
@@ -43,7 +41,7 @@ void imprimir_token(Token token) {
 }
 
 // Função de transição para a máquina de estados
-int transicao(int estado, char simbolo) {
+int transicao(int estado, char simbolo, char lookahead) {
   switch (estado) {
   case 0:
     if (isalpha(simbolo) || simbolo == '_')
@@ -54,21 +52,25 @@ int transicao(int estado, char simbolo) {
       return 3; // Atribuição
     if (simbolo == '\'')
       return 7; // Constante de caractere
-    if (simbolo == '.')
-      return 8; // Possível float (se precedido por um número)
-    if (simbolo == '-')
-      return 10; // Possível associação
-    if (strchr("=><!();,", simbolo))
-      return 5; // Pontuação ou Relacional
+    if (simbolo == '.' && isdigit(lookahead))
+      return 8; // Float
+    if (simbolo == '-' && lookahead == '>')
+      return 10; // Associação
+    if (strchr("=><!", simbolo))
+      return 5; // Relacional
+    if (strchr(";,", simbolo))
+      return 13; // Pontuação
+    if (strchr("()", simbolo))
+      return 14; // Parenteses
     if (strchr("+-*/", simbolo))
-      return 12; // Operador Matematico
+      return 11; // Operador Matematico
     if (simbolo == '{')
       return 6; // Comentário
     if (isspace(simbolo))
       return 0; // Ignorar espaços
     return -1;  // Erro léxico
   case 1:
-    if (isalnum(simbolo) || simbolo == '_')
+    if (isalnum(lookahead) || lookahead == '_')
       return 1; // Continua identificador ou palavra reservada
     return 0;   // Finaliza identificador ou palavra reservada
   case 2:
@@ -89,7 +91,7 @@ int transicao(int estado, char simbolo) {
     return 0;   // Finaliza operador simples
   case 6:
     if (simbolo == '}')
-      return 13; // Finaliza comentário
+      return 12; // Finaliza comentário
     return 6;    // Continua comentário
   case 7:
     if (simbolo == '\'')
@@ -104,15 +106,15 @@ int transicao(int estado, char simbolo) {
       return 9; // Continua número float
     return 0;   // Finaliza número float
   case 10:
-    if (simbolo == '>')
-      return 11;
-    return 12;
-  case 11:
     return 0;
-  case 12:
+  case 11:
     return 0; // Operador Matematico
-  case 13:
+  case 12:
     return 0; // Finaliza Comentario
+  case 13:
+    return 0; // Pontuacao
+  case 14:
+    return 0; // Parenteses
   default:
     return -1; // Erro léxico
   }
@@ -125,6 +127,15 @@ int e_palavra_reservada(const char *lexema) {
       return 1;
   }
   return 0;
+}
+
+char procura_char(char *search, char *string) {
+  for (int i = 0; i < strlen(string); i++) {
+    if (strchr(search, string[i])) {
+      return string[i];
+    }
+  }
+  return '0';
 }
 
 // Função para processar a entrada e reconhecer tokens
@@ -146,9 +157,12 @@ int processar(const char *entrada, TabelaSimbolos *tabela,
 
   const char *p = entrada_com_padding;
 
+  int flag_added = 0;
+
   while (*p) {
     char simbolo = *p;
-    int novo_estado = transicao(estado, simbolo);
+    char lookahead = *(p + 1);
+    int novo_estado = transicao(estado, simbolo, lookahead);
 
     if (novo_estado == -1) {
       erro_lexico(simbolo, linha, coluna);
@@ -156,22 +170,25 @@ int processar(const char *entrada, TabelaSimbolos *tabela,
       lexema_length = 0;
       memset(lexema, 0, sizeof(lexema));
     } else {
-      if (novo_estado != estado) {
+      if (novo_estado == 0) {
         if (estado == 1) {
           Token token;
           if (e_palavra_reservada(lexema))
             token.tipo_token = PALAVRA_RESERVADA;
-          else
+          else {
             token.tipo_token = IDENTIFICADOR;
+          }
+
           strncpy(token.lexema, lexema, lexema_length);
-          token.lexema[lexema_length] = '\0';
+          token.lexema[lexema_length] = simbolo;
+          token.lexema[lexema_length + 1] = '\0';
           token.linha = linha;
           token.coluna = coluna - lexema_length;
           token.tipo_dado = NAO_APLICAVEL;
           adicionar_token(tabela, token);
         } else if (estado == 2) {
           Token token;
-          token.tipo_token = NUMERO;
+          token.tipo_token = INT_CONST;
           strncpy(token.lexema, lexema, lexema_length);
           token.lexema[lexema_length] = '\0';
           token.linha = linha;
@@ -199,11 +216,19 @@ int processar(const char *entrada, TabelaSimbolos *tabela,
           token.tipo_dado = CHAR;
           token.valor.valor_char = lexema[0];
           adicionar_token(tabela, token);
-        } else if (estado == 11) { // Associação
+        } else if (estado == 10) { // Associação
           Token token;
-          token.tipo_token = ASSOCIACAO; // Pode mudar para um novo tipo
+          token.tipo_token = ASSOCIACAO;
           strncpy(token.lexema, "->", 2);
           token.lexema[2] = '\0';
+          token.linha = linha;
+          token.coluna = coluna - 2;
+          token.tipo_dado = NAO_APLICAVEL;
+          adicionar_token(tabela, token);
+        } else if (estado == 4) {
+          Token token;
+          token.tipo_token = ATRIBUICAO;
+          strcpy(token.lexema, ":=");
           token.linha = linha;
           token.coluna = coluna - 2;
           token.tipo_dado = NAO_APLICAVEL;
@@ -211,12 +236,18 @@ int processar(const char *entrada, TabelaSimbolos *tabela,
         } else if (estado == 5) {
           Token token;
           token.tipo_token = RELACIONAL;
-          strncpy(token.lexema, lexema, 2);
+          token.lexema[0] = lexema[0];
+          if (simbolo == '=') {
+            token.lexema[1] = '=';
+            token.lexema[2] = '\0';
+          } else {
+            token.lexema[1] = '\0';
+          }
           token.linha = linha;
           token.coluna = coluna - 2;
           token.tipo_dado = NAO_APLICAVEL;
           adicionar_token(tabela, token);
-        } else if (estado == 12) {
+        } else if (estado == 11) {
           Token token;
           token.tipo_token = ARITMETICO;
           strncpy(token.lexema, lexema, 1);
@@ -224,31 +255,20 @@ int processar(const char *entrada, TabelaSimbolos *tabela,
           token.coluna = coluna - 2;
           token.tipo_dado = NAO_APLICAVEL;
           adicionar_token(tabela, token);
+        } else if (estado == 12) {
+          comentario_aberto = 0;
         } else if (estado == 13) {
           Token token;
-          token.tipo_token = COMENTARIO;
-          token.lexema[0] = '{';
+          token.lexema[0] = procura_char(",;", lexema);
           token.lexema[1] = '\0';
+          token.tipo_token = PONTUACAO;
           token.tipo_dado = NAO_APLICAVEL;
           token.linha = linha;
           token.coluna = coluna - 2;
-          comentario_aberto = 0;
           adicionar_token(tabela, token);
         }
         lexema_length = 0;
         memset(lexema, 0, sizeof(lexema));
-      } else if (estado == 6 && comentario_aberto == 0) {
-        comentario_aberto = 1;
-        Token token;
-        token.tipo_token = COMENTARIO;
-        token.lexema[0] = '}';
-        token.lexema[1] = '\0';
-        token.tipo_dado = NAO_APLICAVEL;
-        token.linha = linha;
-        token.coluna = coluna - 2;
-        coment_aberto[0] = linha;
-        coment_aberto[1] = coluna - 2;
-        adicionar_token(tabela, token);
       }
       if (!isspace(simbolo) && simbolo != '{' && simbolo != '}')
         lexema[lexema_length++] = simbolo;
@@ -270,6 +290,7 @@ void erro_lexico(char simbolo, int linha, int coluna) {
   fprintf(stderr,
           "Erro lexico: simbolo '%c' inesperado na linha %d, coluna %d\n",
           simbolo, linha, coluna);
+  exit(EXIT_FAILURE);
 }
 
 // Inicializa a Tabela de Símbolos

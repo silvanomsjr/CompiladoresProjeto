@@ -5,8 +5,8 @@
 int main() {
   // Exemplos de entrada para teste
   const char *entrada =
-      "main programaTeste  begin int -> x; x := 42; if x > 10 "
-      "then  y := x + 1 else { comentario } end";
+      "main programaTeste begin int -> x , y ; x := 4.5 ; if x == 10 "
+      "then  y := x + 15 else { comentario } end";
   // const char *entrada1 = "main programaTeste2  begin int->m m := 50 ; while m
   // > 10 do  {y := x + 1} repeat m until {comentario} end";
 
