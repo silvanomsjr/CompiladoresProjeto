@@ -139,13 +139,12 @@ char procura_char(char *search, char *string) {
 }
 
 // Função para processar a entrada e reconhecer tokens
-int processar(const char *entrada, TabelaSimbolos *tabela,
-              int coment_aberto[]) {
+void processar(const char *entrada, TabelaSimbolos *tabela) {
   int estado = 0;
   int linha = 1, coluna = 1;
   char lexema[MAX_TOKEN_LENGTH] = {0};
   int lexema_length = 0;
-  int comentario_aberto = 0;
+  int comentario_aberto[2] = {0};
 
   // Padding na string de entrada
   size_t tamanho_entrada = strlen(entrada);
@@ -173,15 +172,17 @@ int processar(const char *entrada, TabelaSimbolos *tabela,
       if (novo_estado == 0) {
         if (estado == 1) {
           Token token;
-          if (e_palavra_reservada(lexema))
+
+          strncpy(token.lexema, lexema, lexema_length);
+          token.lexema[lexema_length] = simbolo;
+          token.lexema[lexema_length + 1] = '\0';
+
+          if (e_palavra_reservada(token.lexema))
             token.tipo_token = PALAVRA_RESERVADA;
           else {
             token.tipo_token = IDENTIFICADOR;
           }
 
-          strncpy(token.lexema, lexema, lexema_length);
-          token.lexema[lexema_length] = simbolo;
-          token.lexema[lexema_length + 1] = '\0';
           token.linha = linha;
           token.coluna = coluna - lexema_length;
           token.tipo_dado = NAO_APLICAVEL;
@@ -255,8 +256,6 @@ int processar(const char *entrada, TabelaSimbolos *tabela,
           token.coluna = coluna - 2;
           token.tipo_dado = NAO_APLICAVEL;
           adicionar_token(tabela, token);
-        } else if (estado == 12) {
-          comentario_aberto = 0;
         } else if (estado == 13) {
           Token token;
           token.lexema[0] = procura_char(",;", lexema);
@@ -270,6 +269,10 @@ int processar(const char *entrada, TabelaSimbolos *tabela,
         lexema_length = 0;
         memset(lexema, 0, sizeof(lexema));
       }
+      if (novo_estado == 6) {
+        comentario_aberto[0] = linha;
+        comentario_aberto[1] = coluna - 2;
+      }
       if (!isspace(simbolo) && simbolo != '{' && simbolo != '}')
         lexema[lexema_length++] = simbolo;
       estado = novo_estado;
@@ -282,7 +285,10 @@ int processar(const char *entrada, TabelaSimbolos *tabela,
     p++;
   }
 
-  return estado;
+  if (estado == 6) {
+    printf("\n\nErro: comentario nao fechado na linha = %d, coluna = %d\n\n",
+           comentario_aberto[0], comentario_aberto[1]);
+  }
 }
 
 // Função para tratamento de erro léxico

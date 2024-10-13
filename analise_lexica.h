@@ -43,7 +43,7 @@ typedef struct {
 void adicionar_token(TabelaSimbolos *tabela, Token token);
 void imprimir_token(Token token);
 int transicao(int estado, char simbolo, char lookahead);
-int processar(const char *entrada, TabelaSimbolos *tabela, int coment_aberto[]);
+void processar(const char *entrada, TabelaSimbolos *tabela);
 void erro_lexico(char simbolo, int linha, int coluna);
 int e_palavra_reservada(const char *lexema);
 void inicializar_tabela(TabelaSimbolos *tabela);

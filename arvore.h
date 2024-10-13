@@ -14,6 +14,7 @@ typedef Node *ArvoreBin;
 
 ArvoreBin *cria_arvore();
 void libera_arvore(ArvoreBin *raiz);
-void inserir_em_no(Node *no);
+void inserir_em_no(Node *no, char *valor);
+void imprimir_arvore(ArvoreBin raiz, char *indentacao);
 
 #endif // !ARVORE_H
