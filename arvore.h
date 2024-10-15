@@ -16,5 +16,6 @@ ArvoreBin *cria_arvore();
 void libera_arvore(ArvoreBin *raiz);
 void inserir_em_no(Node *no, char *valor);
 void imprimir_arvore(ArvoreBin raiz, char *indentacao);
+Node *cria_no();
 
 #endif // !ARVORE_H

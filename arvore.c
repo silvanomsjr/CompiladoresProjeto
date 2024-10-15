@@ -30,7 +30,7 @@ void libera_no(Node *no) {
   if (no == NULL)
     return;
 
-  for (int i = 0; i < MAX_NODES; i++) {
+  for (int i = 0; i < no->qntd_filhos; i++) {
     libera_no(no->filhos[i]);
   }
   free(no);
@@ -56,6 +56,19 @@ void inserir_em_no(Node *no, char *valor) {
 
   no->filhos[no->qntd_filhos] = novo_no;
   no->qntd_filhos++;
+}
+
+Node *cria_no() {
+  Node *no = (Node *)malloc(sizeof(Node));
+  if (no == NULL) {
+    fprintf(stderr, "Erro ao alocar memória para a árvore.\n");
+    exit(1);
+  }
+
+  no->qntd_filhos = 0;
+  strcpy(no->token, ""); // Inicializa o token com string vazia
+
+  return no;
 }
 
 void imprimir_arvore(ArvoreBin raiz, char *indentacao) {
