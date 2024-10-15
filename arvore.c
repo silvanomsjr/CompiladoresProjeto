@@ -27,10 +27,11 @@ ArvoreBin *cria_arvore() {
 }
 
 void libera_no(Node *no) {
-  if (no == NULL)
+  if (no == NULL) {
     return;
+  }
 
-  for (int i = 0; i < MAX_NODES; i++) {
+  for (int i = 0; i < no->qntd_filhos; i++) {
     libera_no(no->filhos[i]);
   }
   free(no);

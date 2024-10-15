@@ -11,6 +11,8 @@ const char *palavras_reservadas[] = {
 
 // Adiciona um token à Tabela de Símbolos
 void adicionar_token(TabelaSimbolos *tabela, Token token) {
+  printf("\n\n + \n\n");
+  fflush(stdout);
   if (tabela->tamanho >= tabela->capacidade) {
     tabela->capacidade *= 2;
     tabela->tokens =
@@ -25,10 +27,10 @@ void adicionar_token(TabelaSimbolos *tabela, Token token) {
 
 // Imprime um token no console
 void imprimir_token(Token token) {
-  const char *tipos[] = {"Palavra Reservada", "Identificador", "Atribuicao",
-                         "Relacional",        "Aritmetico",    "Pontuacao",
-                         "Associacao",        "Espaco",        "Erro",
-                         "INT_CONST",         "CHAR_CONST",    "FLOAT_CONST"};
+  const char *tipos[] = {
+      "Palavra Reservada", "Identificador", "Atribuicao", "Relacional", "Paren",
+      "Aritmetico",        "Pontuacao",     "Associacao", "Espaco",     "Erro",
+      "INT_CONST",         "CHAR_CONST",    "FLOAT_CONST"};
   printf("Token: Tipo= %s, Lexema= %s, Linha= %d, Coluna= %d",
          tipos[token.tipo_token], token.lexema, token.linha, token.coluna);
   if (token.tipo_dado == INT)
@@ -48,14 +50,14 @@ int transicao(int estado, char simbolo, char lookahead) {
       return 1; // Identificador ou palavra reservada
     if (isdigit(simbolo))
       return 2; // Número inteiro
+    if (simbolo == ':' && lookahead != '=')
+      return 10;
     if (simbolo == ':')
       return 3; // Atribuição
     if (simbolo == '\'')
       return 7; // Constante de caractere
     if (simbolo == '.' && isdigit(lookahead))
       return 8; // Float
-    if (simbolo == '-' && lookahead == '>')
-      return 10; // Associação
     if (strchr("=><!", simbolo))
       return 5; // Relacional
     if (strchr(";,", simbolo))
@@ -162,6 +164,9 @@ void processar(const char *entrada, TabelaSimbolos *tabela) {
     char simbolo = *p;
     char lookahead = *(p + 1);
     int novo_estado = transicao(estado, simbolo, lookahead);
+    printf("lexema: [%s]\nestado: [%d]\nnovo-estado: [%d]\n\n", lexema, estado,
+           novo_estado);
+    fflush(stdout);
 
     if (novo_estado == -1) {
       erro_lexico(simbolo, linha, coluna);
@@ -220,7 +225,7 @@ void processar(const char *entrada, TabelaSimbolos *tabela) {
         } else if (estado == 10) { // Associação
           Token token;
           token.tipo_token = ASSOCIACAO;
-          strncpy(token.lexema, "->", 2);
+          strncpy(token.lexema, ":", 2);
           token.lexema[2] = '\0';
           token.linha = linha;
           token.coluna = coluna - 2;
@@ -251,7 +256,7 @@ void processar(const char *entrada, TabelaSimbolos *tabela) {
         } else if (estado == 11) {
           Token token;
           token.tipo_token = ARITMETICO;
-          strncpy(token.lexema, lexema, 1);
+          strcpy(token.lexema, lexema);
           token.linha = linha;
           token.coluna = coluna - 2;
           token.tipo_dado = NAO_APLICAVEL;
@@ -261,6 +266,15 @@ void processar(const char *entrada, TabelaSimbolos *tabela) {
           token.lexema[0] = procura_char(",;", lexema);
           token.lexema[1] = '\0';
           token.tipo_token = PONTUACAO;
+          token.tipo_dado = NAO_APLICAVEL;
+          token.linha = linha;
+          token.coluna = coluna - 2;
+          adicionar_token(tabela, token);
+        } else if (estado == 14) {
+          Token token;
+          token.lexema[0] = procura_char("()", lexema);
+          token.lexema[1] = '\0';
+          token.tipo_token = PAREN;
           token.tipo_dado = NAO_APLICAVEL;
           token.linha = linha;
           token.coluna = coluna - 2;

@@ -7,14 +7,12 @@
 #include <string.h>
 
 // Variaveis Globais
-char *tipos_token[] = {"Palavra Reservada", "Identificador", "Atribuicao",
-                       "Relacional",        "Aritmetico",    "Pontuacao",
-                       "Associacao",        "Espaco",        "Erro",
-                       "INT_CONST",         "CHAR_CONST",    "FLOAT_CONST"};
+char *tipos_token[] = {
+    "Palavra Reservada", "Identificador", "Atribuicao", "Relacional", "Paren",
+    "Aritmetico",        "Pontuacao",     "Associacao", "Espaco",     "Erro",
+    "INT_CONST",         "CHAR_CONST",    "FLOAT_CONST"};
 TabelaSimbolos tabela;
 ArvoreBin *raiz;
-Node *atual;
-Node *antigo;
 Token lookahead;
 int lookahead_count = 1;
 
@@ -43,284 +41,334 @@ Token avanca_lookahead() {
     lookahead_count++;
     return tabela.tokens[lookahead_count];
   } else {
-    fprintf(stderr, "Erro: Fim dos Tokens");
+    fprintf(stderr, "Erro: Fim Inesperado");
     exit(EXIT_FAILURE);
   }
 }
 
-void insere_no(char *val) {
-  antigo = atual;
-  inserir_em_no(antigo, val);
-  int qntd_filhos = antigo->qntd_filhos;
-  atual = antigo->filhos[qntd_filhos - 1];
+void checa_pilha() {
+  if (strcmp(lookahead.lexema, "") != 0) {
+    fprintf(stderr, "Erro: Código continua após o 'end'\n");
+    exit(EXIT_FAILURE);
+  }
 }
 
-void match(char *palavra) {
-  if (strcmp(palavra, tipos_token[lookahead.tipo_token]) ||
-      strcmp(palavra, trim(lookahead.lexema))) {
+Node *insere_no(Node *pai, char *val) {
+  if (pai == NULL) {
+    fprintf(stderr,
+            "Erro: Nao foi possível alocar memoria suficiente para o pai\n");
+
+    exit(EXIT_FAILURE);
+  }
+  Node *filho = (Node *)malloc(sizeof(Node));
+  filho->qntd_filhos = 0;
+  strcpy(filho->token, val);
+
+  int qntd_filhos = pai->qntd_filhos;
+
+  pai->filhos[qntd_filhos] = filho;
+  pai->qntd_filhos++;
+  return filho;
+}
+
+void match(char *palavra, Node *pai) {
+  if (strcmp(palavra, tipos_token[lookahead.tipo_token]) == 0 ||
+      strcmp(palavra, trim(lookahead.lexema)) == 0) {
+    inserir_em_no(pai, palavra);
     lookahead = avanca_lookahead();
   } else {
     fprintf(stderr,
-            "Erro Sintático: match falhou, esperado '%s' mas encontrado '%s'\n",
-            palavra, trim(lookahead.lexema));
+            "Erro Sintático: match falhou, esperado '%s' mas encontrado '%s', "
+            "linha: '%d', coluna: '%d'\n",
+            palavra, trim(lookahead.lexema), lookahead.linha, lookahead.coluna);
+    exit(EXIT_FAILURE);
   }
 }
+
+// void matchDiferente(char *palavra, Node *pai) {
+//   printf("-- Tem que ser [%s] = [%s]\n", palavra, trim(lookahead.lexema));
+//   if (strcmp(palavra, tipos_token[lookahead.tipo_token]) == 0 ||
+//       strcmp(palavra, trim(lookahead.lexema)) == 0) {
+//     inserir_em_no(pai, palavra);
+//     lookahead = avanca_lookahead();
+//   } else {
+//     fprintf(stderr,
+//             "Erro Sintático: match falhou, esperado '%s' mas encontrado
+//             '%s'\n", palavra, trim(lookahead.lexema));
+//   }
+// }
 
 void programa() {
   strcpy((*raiz)->token, "main");
-
-  printf("programa\n");
   if (strcmp(tipos_token[lookahead.tipo_token], "Identificador") == 0) {
-    match("Identificador");
-    bloco();
+    printf("chegou aqui?\n");
+    fflush(stdout);
+    match("Identificador", *raiz);
+    printf("e aqui?\n");
+    fflush(stdout);
+    bloco(*raiz);
   }
 }
 
-void bloco() {
-  printf("bloco\n");
-  insere_no("bloco");
+void bloco(Node *pai) {
+  // Node *atual = (Node *)malloc(sizeof(Node));
+  // atual->qntd_filhos = 0;
+  // strcpy(atual->token, "bloco");
+  // pai->filhos[pai->qntd_filhos] = atual;
+  // pai->qntd_filhos++;
   if (strcmp(tipos_token[lookahead.tipo_token], "Palavra Reservada") == 0 &&
       strcmp(trim(lookahead.lexema), "begin") == 0) {
-    match("begin");
-    declaracoes();
-    comandos();
-    match("end");
+
+    Node *atual = insere_no(pai, "bloco");
+    match("begin", atual);
+    declaracoes(atual);
+    comandos(atual);
+    match("end", atual);
   } else {
     fprintf(stderr, "Erro Sintático: 'begin' esperado\n");
+    exit(EXIT_FAILURE);
   }
 }
 
-void declaracoes() {
-  printf("delcaracoes\n");
-  insere_no("declaracoes");
+void declaracoes(Node *pai) {
   if (strcmp(tipos_token[lookahead.tipo_token], "Palavra Reservada") == 0) {
-    tipo();
-    match("->");
-    lista_ids_1();
-    match(";");
+    Node *atual = insere_no(pai, "declaracoes");
+    declaracao(atual);
   }
 }
 
-void tipo() {
-  printf("tipo\n");
-  insere_no("tipo");
+void declaracao(Node *pai) {
+  if (strcmp(tipos_token[lookahead.tipo_token], "Palavra Reservada") == 0) {
+    Node *atual = insere_no(pai, "declaracao");
+    tipo(atual);
+    match(":", atual);
+    lista_ids_1(atual);
+    match(";", atual);
+    declaracao(pai);
+  }
+}
+
+void tipo(Node *pai) {
   if (strcmp(trim(lookahead.lexema), "int") == 0 ||
       strcmp(trim(lookahead.lexema), "float") == 0 ||
       strcmp(trim(lookahead.lexema), "char") == 0) {
-    match(trim(lookahead.lexema));
+    Node *atual = insere_no(pai, "tipo");
+    match(trim(lookahead.lexema), atual);
   } else {
     fprintf(stderr, "Erro Sintático: Tipo esperado\n");
+    exit(EXIT_FAILURE);
   }
 }
 
-void lista_ids_1() {
-  printf("lista_ids_1\n");
-  insere_no("lista_ids_1");
+void lista_ids_1(Node *pai) {
   if (strcmp(tipos_token[lookahead.tipo_token], "Identificador") == 0) {
-    match("Identificador");
-    lista_ids_2();
+    Node *atual = insere_no(pai, "lista_ids_1");
+    match("Identificador", atual);
+    lista_ids_2(atual);
   } else {
     fprintf(stderr, "Erro Sintático: Identificador esperado\n");
+    exit(EXIT_FAILURE);
   }
 }
 
-void lista_ids_2() {
-  printf("lista_ids_2\n");
-  insere_no("lista_ids_2");
+void lista_ids_2(Node *pai) {
   if (strcmp(trim(lookahead.lexema), ",") == 0) {
-    match(",");
-    lista_ids_1();
+    Node *atual = insere_no(pai, "lista_ids_2");
+    match(",", atual);
+    lista_ids_1(atual);
   }
-  // Caso contrário é vazio (epsilon)
 }
 
-void comandos() {
-  printf("comandos\n");
-  insere_no("comandos");
+void comandos(Node *pai) {
   while (strcmp(tipos_token[lookahead.tipo_token], "Palavra Reservada") == 0 &&
              (strcmp(trim(lookahead.lexema), "if") == 0 ||
               strcmp(trim(lookahead.lexema), "while") == 0 ||
               strcmp(trim(lookahead.lexema), "repeat") == 0) ||
          strcmp(tipos_token[lookahead.tipo_token], "Identificador") == 0) {
-    comando(); // Executa um comando
+    Node *atual = insere_no(pai, "comandos");
+    comando(atual);
   }
 }
 
-void comando() {
-  printf("comando\n");
-  insere_no("comando");
-  // printf("O que eh aqui? [%s]\n", tipos_token[lookahead.tipo_token]);
-  // printf("lexema? [%s]\n", trim(lookahead.lexema));
+void comando(Node *pai) {
   if (strcmp(tipos_token[lookahead.tipo_token], "Identificador") == 0) {
-    atribuicao();
+    Node *atual = insere_no(pai, "comando");
+    atribuicao(atual);
   } else if (strcmp(trim(lookahead.lexema), "if") == 0) {
-    comando_if();
+    Node *atual = insere_no(pai, "comando");
+    comando_if(atual);
   } else if (strcmp(trim(lookahead.lexema), "while") == 0) {
-    comando_repeticao();
+    Node *atual = insere_no(pai, "comando");
+    comando_repeticao(atual);
+  } else if (strcmp(trim(lookahead.lexema), "begin") == 0) {
+    Node *atual = insere_no(pai, "comando");
+    bloco(atual);
   } else {
     fprintf(stderr, "Erro Sintático: comando esperado\n");
+    exit(EXIT_FAILURE);
   }
 }
 
-void atribuicao() {
-  printf("atr\n");
-  insere_no("atribuicao");
+void atribuicao(Node *pai) {
   if (strcmp(tipos_token[lookahead.tipo_token], "Identificador") == 0) {
-    match("Identificador");
-    match(":=");
-    expressao_1();
-    match(";");
+    Node *atual = insere_no(pai, "atribuicao");
+    match("Identificador", atual);
+    match(":=", atual);
+    expressao_1(atual);
+    match(";", atual);
   }
 }
 
-void comando_if() {
-  printf("if\n");
-  insere_no("comando_if");
+void comando_if(Node *pai) {
   if (strcmp(tipos_token[lookahead.tipo_token], "Palavra Reservada") == 0 &&
       strcmp(trim(lookahead.lexema), "if") == 0) {
-    match("if");
-    match("(");
-    condicao();
-    match(")");
-    match("then");
-    comando();
-    comando_else();
+    match("if", pai);
+    match("(", pai);
+    condicao(pai);
+    match(")", pai);
+    match("then", pai);
+    comando(pai);
+    comando_else(pai);
   }
 }
 
-void comando_else() {
-  printf("else\n");
-  insere_no("comando_else");
+void comando_else(Node *pai) {
   if (strcmp(tipos_token[lookahead.tipo_token], "Palavra Reservada") == 0 &&
-      strcmp(trim(lookahead.lexema), "else")) {
-    match("else");
-    comando();
+      strcmp(trim(lookahead.lexema), "else") == 0) {
+    match("else", pai);
+    comando(pai);
   }
 }
 
-void comando_repeticao() {
-  printf("repet\n");
-  insere_no("comando_repeticao");
+void comando_repeticao(Node *pai) {
   if (strcmp(trim(lookahead.lexema), "while") == 0) {
-    match("while");
-    match("(");
-    condicao();
-    match(")");
-    match("do");
-    comando();
+    Node *atual = insere_no(pai, "while");
+    match("while", atual);
+    match("(", atual);
+    condicao(atual);
+    match(")", atual);
+    match("do", atual);
+    comando(atual);
   } else if (strcmp(trim(lookahead.lexema), "repeat") == 0) {
-    match("repeat");
-    comando();
-    match("until");
-    match("(");
-    condicao();
-    match(")");
-    match(";");
+    Node *atual = insere_no(pai, "repeat");
+    match("repeat", atual);
+    comando(atual);
+    match("until", atual);
+    match("(", atual);
+    condicao(atual);
+    match(")", atual);
+    match(";", atual);
   }
 }
 
-void condicao() {
-  printf("condicao\n");
-  insere_no("condicao");
-  expressao_1();
-  operador_relacional();
-  expressao_1();
+void condicao(Node *pai) {
+  Node *atual = insere_no(pai, "condicao");
+  expressao_1(atual);
+  operador_relacional(atual);
+  expressao_1(atual);
 }
 
-void operador_relacional() {
-  printf("operador_relacional\n");
-  insere_no("operador_relacional");
+void operador_relacional(Node *pai) {
   if (strcmp(trim(lookahead.lexema), "==") == 0 ||
       strcmp(trim(lookahead.lexema), "!=") == 0 ||
       strcmp(trim(lookahead.lexema), ">") == 0 ||
       strcmp(trim(lookahead.lexema), ">=") == 0 ||
       strcmp(trim(lookahead.lexema), "<") == 0 ||
       strcmp(trim(lookahead.lexema), "<=") == 0) {
-    match(trim(lookahead.lexema));
+    Node *atual = insere_no(pai, "relacional");
+    match(trim(lookahead.lexema), atual);
   } else {
     fprintf(stderr, "Erro Sintático: Operador relacional esperado\n");
+    exit(EXIT_FAILURE);
   }
 }
 
-void expressao_1() {
-  printf("expressao_1\n");
-  insere_no("expressao_1");
-  termo_1();
-  expressao_2();
+void expressao_1(Node *pai) {
+  Node *atual = insere_no(pai, "expressao_1");
+  termo_1(atual);
+  expressao_2(atual);
 }
 
-void expressao_2() {
-  printf("expressao_2\n");
-  insere_no("expressao_2");
+void expressao_2(Node *pai) {
   if (strcmp(trim(lookahead.lexema), "+") == 0) {
-    match("+");
-    termo_1();
-    expressao_2();
+    Node *atual = insere_no(pai, "expressao_2");
+    match("+", atual);
+    termo_1(atual);
+    expressao_2(atual);
   } else if (strcmp(trim(lookahead.lexema), "-") == 0) {
-    match("-");
-    termo_1();
-    expressao_2();
+    Node *atual = insere_no(pai, "expressao_2");
+    match("-", atual);
+    termo_1(atual);
+    expressao_2(atual);
   }
 }
 
-void termo_1() {
-  printf("termo_1\n");
-  insere_no("termo_1");
-  fator();
-  termo_2();
+void termo_1(Node *pai) {
+  Node *atual = insere_no(pai, "termo_1");
+  fator(atual);
+  termo_2(atual);
 }
 
-void termo_2() {
-  printf("termo_2\n");
-  insere_no("termo_2");
+void termo_2(Node *pai) {
   if (strcmp(trim(lookahead.lexema), "*") == 0) {
-    match("*");
-    fator();
-    termo_2();
+    Node *atual = insere_no(pai, "termo_2");
+    match("*", atual);
+    fator(atual);
+    termo_2(atual);
   } else if (strcmp(trim(lookahead.lexema), "/") == 0) {
-    match("/");
-    fator();
-    termo_2();
+    Node *atual = insere_no(pai, "termo_2");
+    match("/", atual);
+    fator(atual);
+    termo_2(atual);
   } else if (strcmp(trim(lookahead.lexema), "**") == 0) {
-    match("**");
-    fator();
-    termo_2();
+    Node *atual = insere_no(pai, "termo_2");
+    match("**", atual);
+    fator(atual);
+    termo_2(atual);
   }
 }
 
-void fator() {
-  printf("fator\n");
-  insere_no("fator");
-  printf("-- Lexema: [%s]\n", lookahead.lexema);
-  printf("-- TipoToken: [%s]\n", tipos_token[lookahead.tipo_token]);
+void fator(Node *pai) {
   if (strcmp(trim(lookahead.lexema), "(") == 0) {
-    match("(");
-    expressao_1();
-    match(")");
+    Node *atual = insere_no(pai, "fator");
+    match("(", atual);
+    expressao_1(atual);
+    match(")", atual);
   } else if (strcmp(tipos_token[lookahead.tipo_token], "Identificador") == 0) {
-    match("Identificador");
+    Node *atual = insere_no(pai, "fator");
+    match("Identificador", atual);
   } else if (strcmp(tipos_token[lookahead.tipo_token], "FLOAT_CONST") == 0) {
-    match("FLOAT_CONST");
+    Node *atual = insere_no(pai, "fator");
+    match("FLOAT_CONST", atual);
   } else if (strcmp(tipos_token[lookahead.tipo_token], "INT_CONST") == 0) {
-    match("INT_CONST");
+    Node *atual = insere_no(pai, "fator");
+    match("INT_CONST", atual);
   } else if (strcmp(tipos_token[lookahead.tipo_token], "CHAR_CONST") == 0) {
-    match("CHAR_CONST");
+    Node *atual = insere_no(pai, "fator");
+    match("CHAR_CONST", atual);
   } else {
     fprintf(stderr, "Erro Sintático: Fator esperado\n");
+    exit(EXIT_FAILURE);
   }
 }
 
 void inicia(const char *entrada) {
+  printf("aqui:?");
+  fflush(stdout);
   inicializar_tabela(&tabela);
 
+  printf("chegou aq? inici\n");
+  fflush(stdout);
   processar(entrada, &tabela);
 
+  printf("chegou aq?");
+  fflush(stdout);
   raiz = cria_arvore();
-  atual = *raiz;
 
-  printf("Tokens reconhecidos:\n");
   for (int i = 0; i < tabela.tamanho; i++) {
-    imprimir_token(tabela.tokens[i]);
+    // imprimir_token(tabela.tokens[i]);
+    printf("Token [%d]\n", i + 1);
+    printf("Token Lexema: [%s]\n\n\n", tabela.tokens[i].lexema);
   }
 
   Token atual = tabela.tokens[0];
@@ -330,6 +378,8 @@ void inicia(const char *entrada) {
       strcmp(atual.lexema, "main") == 0) {
     programa();
   }
-  // imprimir_arvore(*raiz, "");
+  checa_pilha();
+  imprimir_arvore(*raiz, "");
+  // libera_arvore(raiz);
   free(tabela.tokens);
 }

@@ -1,32 +1,48 @@
 // #include "analise_lexica.h"
 #include "analise_sintatica.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+char *ler_arquivo(const char *nome_arquivo) {
+  FILE *arquivo = fopen(nome_arquivo, "rb");
+  if (arquivo == NULL) {
+    fprintf(stderr, "Erro ao abrir o arquivo %s\n", nome_arquivo);
+    return NULL;
+  }
+
+  fseek(arquivo, 0, SEEK_END);
+  long tamanho_arquivo = ftell(arquivo);
+  rewind(arquivo);
+
+  char *conteudo = (char *)malloc((tamanho_arquivo + 1) * sizeof(char));
+  if (conteudo == NULL) {
+    fprintf(stderr, "Erro ao alocar memória\n");
+    fclose(arquivo);
+    return NULL;
+  }
+
+  size_t lido = fread(conteudo, sizeof(char), tamanho_arquivo, arquivo);
+  if (lido != tamanho_arquivo) {
+    fprintf(stderr, "Erro ao ler o arquivo\n");
+    free(conteudo);
+    fclose(arquivo);
+    return NULL;
+  }
+
+  conteudo[tamanho_arquivo] = '\0';
+
+  fclose(arquivo);
+
+  return conteudo;
+}
 
 int main() {
-  // Exemplos de entrada para teste
-  const char *entrada =
-      "main programaTeste begin int -> x , y ; x := 4.5 ; if ( x == 10 ) "
-      "then  y := x + 15 else { comentario } end";
-  // const char *entrada1 = "main programaTeste2  begin int->m m := 50 ; while m
-  // > 10 do  {y := x + 1} repeat m until {comentario} end";
-
-  // TabelaSimbolos tabela;
-  // inicializar_tabela(&tabela);
-  // int coment_abert[2] = {0, 0};
-  //
-  // processar(entrada, &tabela); // teste 1
-  // //   processar(entrada1, &tabela); //teste 2
-  //
-  // printf("Tokens reconhecidos:\n");
-  // for (int i = 0; i < tabela.tamanho; i++) {
-  //   imprimir_token(tabela.tokens[i]);
-  // }
+  printf("primeiro\n");
+  fflush(stdout);
+  char *entrada = ler_arquivo("teste.txt");
+  printf("segundo\n");
+  fflush(stdout);
   inicia(entrada);
 
-  // if (estado_final == 6) {
-  //   printf("\n\nErro: comentário não fechado na linha = %d, coluna = %d\n\n",
-  //          coment_abert[0], coment_abert[1]);
-  // }
-
-  // free(tabela.tokens);
   return 0;
 }
