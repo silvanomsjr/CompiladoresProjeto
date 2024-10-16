@@ -43,10 +43,10 @@ typedef struct {
 
 void adicionar_token(TabelaSimbolos *tabela, Token token);
 void imprimir_token(Token token);
-int transicao(int estado, char simbolo, char lookahead);
+int transicao(int estado, char simbolo);
 void processar(const char *entrada, TabelaSimbolos *tabela);
 void erro_lexico(char simbolo, int linha, int coluna);
 int e_palavra_reservada(const char *lexema);
-void inicializar_tabela(TabelaSimbolos *tabela);
+TabelaSimbolos *inicializar_tabela();
 
 #endif // ANALISE_LEXICA_H

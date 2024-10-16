@@ -11,7 +11,7 @@ char *tipos_token[] = {
     "Palavra Reservada", "Identificador", "Atribuicao", "Relacional", "Paren",
     "Aritmetico",        "Pontuacao",     "Associacao", "Espaco",     "Erro",
     "INT_CONST",         "CHAR_CONST",    "FLOAT_CONST"};
-TabelaSimbolos tabela;
+TabelaSimbolos *tabela;
 ArvoreBin *raiz;
 Token lookahead;
 int lookahead_count = 1;
@@ -37,9 +37,9 @@ char *trim(char *str) {
 }
 
 Token avanca_lookahead() {
-  if (lookahead_count < tabela.tamanho) {
+  if (lookahead_count < tabela->tamanho) {
     lookahead_count++;
-    return tabela.tokens[lookahead_count];
+    return tabela->tokens[lookahead_count];
   } else {
     fprintf(stderr, "Erro: Fim Inesperado");
     exit(EXIT_FAILURE);
@@ -48,7 +48,7 @@ Token avanca_lookahead() {
 
 void checa_pilha() {
   if (strcmp(lookahead.lexema, "") != 0) {
-    fprintf(stderr, "Erro: Código continua após o 'end'\n");
+    fprintf(stderr, "Erro: Código continua após o 'end' do bloco main\n");
     exit(EXIT_FAILURE);
   }
 }
@@ -77,45 +77,24 @@ void match(char *palavra, Node *pai) {
     inserir_em_no(pai, palavra);
     lookahead = avanca_lookahead();
   } else {
-    fprintf(stderr,
-            "Erro Sintático: match falhou, esperado '%s' mas encontrado '%s', "
-            "linha: '%d', coluna: '%d'\n",
-            palavra, trim(lookahead.lexema), lookahead.linha, lookahead.coluna);
+    fprintf(
+        stderr,
+        "Erro Sintático: match falhou, esperado '%s' mas encontrado '%s' -> "
+        "linha: '%d', coluna: '%d'\n",
+        palavra, trim(lookahead.lexema), lookahead.linha, lookahead.coluna);
     exit(EXIT_FAILURE);
   }
 }
 
-// void matchDiferente(char *palavra, Node *pai) {
-//   printf("-- Tem que ser [%s] = [%s]\n", palavra, trim(lookahead.lexema));
-//   if (strcmp(palavra, tipos_token[lookahead.tipo_token]) == 0 ||
-//       strcmp(palavra, trim(lookahead.lexema)) == 0) {
-//     inserir_em_no(pai, palavra);
-//     lookahead = avanca_lookahead();
-//   } else {
-//     fprintf(stderr,
-//             "Erro Sintático: match falhou, esperado '%s' mas encontrado
-//             '%s'\n", palavra, trim(lookahead.lexema));
-//   }
-// }
-
 void programa() {
   strcpy((*raiz)->token, "main");
   if (strcmp(tipos_token[lookahead.tipo_token], "Identificador") == 0) {
-    printf("chegou aqui?\n");
-    fflush(stdout);
     match("Identificador", *raiz);
-    printf("e aqui?\n");
-    fflush(stdout);
     bloco(*raiz);
   }
 }
 
 void bloco(Node *pai) {
-  // Node *atual = (Node *)malloc(sizeof(Node));
-  // atual->qntd_filhos = 0;
-  // strcpy(atual->token, "bloco");
-  // pai->filhos[pai->qntd_filhos] = atual;
-  // pai->qntd_filhos++;
   if (strcmp(tipos_token[lookahead.tipo_token], "Palavra Reservada") == 0 &&
       strcmp(trim(lookahead.lexema), "begin") == 0) {
 
@@ -125,7 +104,9 @@ void bloco(Node *pai) {
     comandos(atual);
     match("end", atual);
   } else {
-    fprintf(stderr, "Erro Sintático: 'begin' esperado\n");
+    fprintf(stderr,
+            "Erro Sintático: 'begin' esperado -> linha: '%d', coluna: '%d'\n",
+            lookahead.linha, lookahead.coluna);
     exit(EXIT_FAILURE);
   }
 }
@@ -155,7 +136,10 @@ void tipo(Node *pai) {
     Node *atual = insere_no(pai, "tipo");
     match(trim(lookahead.lexema), atual);
   } else {
-    fprintf(stderr, "Erro Sintático: Tipo esperado\n");
+    fprintf(stderr,
+            "Erro Sintático: Tipo esperado -> linha: '%d', coluna: '%d'\n",
+            lookahead.linha, lookahead.coluna);
+
     exit(EXIT_FAILURE);
   }
 }
@@ -166,7 +150,10 @@ void lista_ids_1(Node *pai) {
     match("Identificador", atual);
     lista_ids_2(atual);
   } else {
-    fprintf(stderr, "Erro Sintático: Identificador esperado\n");
+    fprintf(
+        stderr,
+        "Erro Sintático: Identificador esperado -> linha: '%d', coluna: '%d'\n",
+        lookahead.linha, lookahead.coluna);
     exit(EXIT_FAILURE);
   }
 }
@@ -204,7 +191,9 @@ void comando(Node *pai) {
     Node *atual = insere_no(pai, "comando");
     bloco(atual);
   } else {
-    fprintf(stderr, "Erro Sintático: comando esperado\n");
+    fprintf(stderr,
+            "Erro Sintático: comando esperado -> linha: '%d', coluna: '%d'\n",
+            lookahead.linha, lookahead.coluna);
     exit(EXIT_FAILURE);
   }
 }
@@ -278,7 +267,10 @@ void operador_relacional(Node *pai) {
     Node *atual = insere_no(pai, "relacional");
     match(trim(lookahead.lexema), atual);
   } else {
-    fprintf(stderr, "Erro Sintático: Operador relacional esperado\n");
+    fprintf(stderr,
+            "Erro Sintático: Operador relacional esperado -> linha: '%d', "
+            "coluna: '%d'\n",
+            lookahead.linha, lookahead.coluna);
     exit(EXIT_FAILURE);
   }
 }
@@ -347,32 +339,26 @@ void fator(Node *pai) {
     Node *atual = insere_no(pai, "fator");
     match("CHAR_CONST", atual);
   } else {
-    fprintf(stderr, "Erro Sintático: Fator esperado\n");
+    fprintf(stderr,
+            "Erro Sintático: Fator esperado -> linha: '%d', coluna: '%d'\n",
+            lookahead.linha, lookahead.coluna);
     exit(EXIT_FAILURE);
   }
 }
 
 void inicia(const char *entrada) {
-  printf("aqui:?");
-  fflush(stdout);
-  inicializar_tabela(&tabela);
+  tabela = inicializar_tabela();
 
-  printf("chegou aq? inici\n");
-  fflush(stdout);
-  processar(entrada, &tabela);
+  processar(entrada, tabela);
 
-  printf("chegou aq?");
-  fflush(stdout);
   raiz = cria_arvore();
 
-  for (int i = 0; i < tabela.tamanho; i++) {
-    // imprimir_token(tabela.tokens[i]);
-    printf("Token [%d]\n", i + 1);
-    printf("Token Lexema: [%s]\n\n\n", tabela.tokens[i].lexema);
-  }
+  // for (int i = 0; i < tabela->tamanho; i++) {
+  //   imprimir_token(tabela->tokens[i]);
+  // }
 
-  Token atual = tabela.tokens[0];
-  lookahead = tabela.tokens[1];
+  Token atual = tabela->tokens[0];
+  lookahead = tabela->tokens[1];
 
   if (strcmp(tipos_token[atual.tipo_token], "Palavra Reservada") == 0 &&
       strcmp(atual.lexema, "main") == 0) {
@@ -380,6 +366,6 @@ void inicia(const char *entrada) {
   }
   checa_pilha();
   imprimir_arvore(*raiz, "");
-  // libera_arvore(raiz);
-  free(tabela.tokens);
+  libera_arvore(raiz);
+  free(tabela->tokens);
 }

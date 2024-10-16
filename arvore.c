@@ -63,15 +63,12 @@ void imprimir_arvore(ArvoreBin raiz, char *indentacao) {
   if (raiz == NULL) {
     return;
   }
-  // Imprime o nó atual com a indentação atual
   printf("%s|-- %s\n", indentacao, raiz->token);
 
-  // Gera a nova indentação para os filhos (adiciona "|   ")
   char nova_indentacao[MAX_CHAR];
   strcpy(nova_indentacao, indentacao); // Copia a indentação atual
   strcat(nova_indentacao, "|   ");     // Adiciona a nova indentação
 
-  // Chama recursivamente para os filhos, passando a nova indentação
   for (int i = 0; i < raiz->qntd_filhos; i++) {
     imprimir_arvore(raiz->filhos[i], nova_indentacao);
   }

@@ -1,0 +1,10 @@
+main programaTeste
+  begin
+    int : x , y ;
+    x := 4.5 ;
+    if ( x == 10 ) then
+      y := x + 15 ;
+    else 
+      { comentario } 
+      x := 2 ;
+  end

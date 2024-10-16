@@ -11,16 +11,19 @@ const char *palavras_reservadas[] = {
 
 // Adiciona um token à Tabela de Símbolos
 void adicionar_token(TabelaSimbolos *tabela, Token token) {
-  printf("\n\n + \n\n");
-  fflush(stdout);
+  if (tabela == NULL || tabela->tokens == NULL) {
+    fprintf(stderr, "Erro tabela de simbolos NULA!\n");
+    exit(EXIT_FAILURE);
+  }
   if (tabela->tamanho >= tabela->capacidade) {
     tabela->capacidade *= 2;
-    tabela->tokens =
+    Token *nova_memoria =
         realloc(tabela->tokens, tabela->capacidade * sizeof(Token));
-    if (!tabela->tokens) {
+    if (!nova_memoria) {
       fprintf(stderr, "Erro ao realocar memoria para a tabela de simbolos.\n");
       exit(1);
     }
+    tabela->tokens = nova_memoria;
   }
   tabela->tokens[tabela->tamanho++] = token;
 }
@@ -31,7 +34,7 @@ void imprimir_token(Token token) {
       "Palavra Reservada", "Identificador", "Atribuicao", "Relacional", "Paren",
       "Aritmetico",        "Pontuacao",     "Associacao", "Espaco",     "Erro",
       "INT_CONST",         "CHAR_CONST",    "FLOAT_CONST"};
-  printf("Token: Tipo= %s, Lexema= %s, Linha= %d, Coluna= %d",
+  printf("Token: Tipo= %s, Lexema= [%s], Linha= %d, Coluna= %d",
          tipos[token.tipo_token], token.lexema, token.linha, token.coluna);
   if (token.tipo_dado == INT)
     printf(", Valor= %d", token.valor.valor_int);
@@ -43,20 +46,18 @@ void imprimir_token(Token token) {
 }
 
 // Função de transição para a máquina de estados
-int transicao(int estado, char simbolo, char lookahead) {
+int transicao(int estado, char simbolo) {
   switch (estado) {
   case 0:
     if (isalpha(simbolo) || simbolo == '_')
       return 1; // Identificador ou palavra reservada
     if (isdigit(simbolo))
       return 2; // Número inteiro
-    if (simbolo == ':' && lookahead != '=')
-      return 10;
     if (simbolo == ':')
       return 3; // Atribuição
     if (simbolo == '\'')
       return 7; // Constante de caractere
-    if (simbolo == '.' && isdigit(lookahead))
+    if (simbolo == '.')
       return 8; // Float
     if (strchr("=><!", simbolo))
       return 5; // Relacional
@@ -72,7 +73,7 @@ int transicao(int estado, char simbolo, char lookahead) {
       return 0; // Ignorar espaços
     return -1;  // Erro léxico
   case 1:
-    if (isalnum(lookahead) || lookahead == '_')
+    if (isalnum(simbolo) || simbolo == '_')
       return 1; // Continua identificador ou palavra reservada
     return 0;   // Finaliza identificador ou palavra reservada
   case 2:
@@ -84,7 +85,7 @@ int transicao(int estado, char simbolo, char lookahead) {
   case 3:
     if (simbolo == '=')
       return 4; // Atribuição :=
-    return -1;  // Erro, ':' sem '='
+    return 0;   // ':' sem '='
   case 4:
     return 0; // Finaliza atribuição
   case 5:
@@ -107,8 +108,6 @@ int transicao(int estado, char simbolo, char lookahead) {
     if (isdigit(simbolo))
       return 9; // Continua número float
     return 0;   // Finaliza número float
-  case 10:
-    return 0;
   case 11:
     return 0; // Operador Matematico
   case 12:
@@ -148,26 +147,11 @@ void processar(const char *entrada, TabelaSimbolos *tabela) {
   int lexema_length = 0;
   int comentario_aberto[2] = {0};
 
-  // Padding na string de entrada
-  size_t tamanho_entrada = strlen(entrada);
-
-  char entrada_com_padding[tamanho_entrada];
-  strcpy(entrada_com_padding, entrada);
-  entrada_com_padding[tamanho_entrada] = ' ';
-  entrada_com_padding[tamanho_entrada + 1] = '\0';
-
-  const char *p = entrada_com_padding;
-
-  int flag_added = 0;
+  const char *p = entrada;
 
   while (*p) {
     char simbolo = *p;
-    char lookahead = *(p + 1);
-    int novo_estado = transicao(estado, simbolo, lookahead);
-    printf("lexema: [%s]\nestado: [%d]\nnovo-estado: [%d]\n\n", lexema, estado,
-           novo_estado);
-    fflush(stdout);
-
+    int novo_estado = transicao(estado, simbolo);
     if (novo_estado == -1) {
       erro_lexico(simbolo, linha, coluna);
       estado = 0;
@@ -177,14 +161,10 @@ void processar(const char *entrada, TabelaSimbolos *tabela) {
       if (novo_estado == 0) {
         if (estado == 1) {
           Token token;
-
-          strncpy(token.lexema, lexema, lexema_length);
-          token.lexema[lexema_length] = simbolo;
-          token.lexema[lexema_length + 1] = '\0';
-
-          if (e_palavra_reservada(token.lexema))
+          strcpy(token.lexema, lexema);
+          if (e_palavra_reservada(token.lexema)) {
             token.tipo_token = PALAVRA_RESERVADA;
-          else {
+          } else {
             token.tipo_token = IDENTIFICADOR;
           }
 
@@ -195,8 +175,7 @@ void processar(const char *entrada, TabelaSimbolos *tabela) {
         } else if (estado == 2) {
           Token token;
           token.tipo_token = INT_CONST;
-          strncpy(token.lexema, lexema, lexema_length);
-          token.lexema[lexema_length] = '\0';
+          strcpy(token.lexema, lexema);
           token.linha = linha;
           token.coluna = coluna - lexema_length;
           token.tipo_dado = INT;
@@ -215,14 +194,14 @@ void processar(const char *entrada, TabelaSimbolos *tabela) {
         } else if (estado == 7) {
           Token token;
           token.tipo_token = CHAR_CONST;
-          token.lexema[0] = lexema[0];
+          token.lexema[0] = lexema[1];
           token.lexema[1] = '\0';
           token.linha = linha;
           token.coluna = coluna - lexema_length;
           token.tipo_dado = CHAR;
           token.valor.valor_char = lexema[0];
           adicionar_token(tabela, token);
-        } else if (estado == 10) { // Associação
+        } else if (estado == 3) {
           Token token;
           token.tipo_token = ASSOCIACAO;
           strncpy(token.lexema, ":", 2);
@@ -287,6 +266,10 @@ void processar(const char *entrada, TabelaSimbolos *tabela) {
         comentario_aberto[0] = linha;
         comentario_aberto[1] = coluna - 2;
       }
+      if (novo_estado == 12) {
+        comentario_aberto[0] = 0;
+        comentario_aberto[1] = 0;
+      }
       if (!isspace(simbolo) && simbolo != '{' && simbolo != '}')
         lexema[lexema_length++] = simbolo;
       estado = novo_estado;
@@ -296,12 +279,19 @@ void processar(const char *entrada, TabelaSimbolos *tabela) {
       coluna = 0;
     }
     coluna++;
-    p++;
+    if (novo_estado == 0 && !isspace(simbolo) && simbolo != '{' &&
+        simbolo != '}' && simbolo != '\'' && simbolo != '=') {
+      lexema_length--;
+    } else {
+      p++;
+    }
   }
 
-  if (estado == 6) {
-    printf("\n\nErro: comentario nao fechado na linha = %d, coluna = %d\n\n",
-           comentario_aberto[0], comentario_aberto[1]);
+  if (estado == 6 || comentario_aberto[0] != 0 || comentario_aberto[1] != 0) {
+    fprintf(stderr,
+            "Erro: comentario nao fechado na linha = %d, coluna = %d\n\n",
+            comentario_aberto[0], comentario_aberto[1]);
+    exit(EXIT_FAILURE);
   }
 }
 
@@ -314,8 +304,21 @@ void erro_lexico(char simbolo, int linha, int coluna) {
 }
 
 // Inicializa a Tabela de Símbolos
-void inicializar_tabela(TabelaSimbolos *tabela) {
-  tabela->tokens = malloc(10 * sizeof(Token));
+TabelaSimbolos *inicializar_tabela() {
+  TabelaSimbolos *tabela = (TabelaSimbolos *)malloc(sizeof(TabelaSimbolos));
+  if (tabela == NULL) {
+    perror("Erro ao alocar memória para a tabela de símbolos");
+    exit(EXIT_FAILURE);
+  }
+
+  tabela->capacidade = 12;
   tabela->tamanho = 0;
-  tabela->capacidade = 10;
+  tabela->tokens = (Token *)malloc(12 * sizeof(Token));
+  if (!tabela->tokens) {
+    perror("Erro ao alocar memória para os tokens");
+    free(tabela);
+    exit(EXIT_FAILURE);
+  }
+
+  return tabela;
 }

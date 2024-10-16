@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 char *ler_arquivo(const char *nome_arquivo) {
-  FILE *arquivo = fopen(nome_arquivo, "rb");
+  FILE *arquivo = fopen(nome_arquivo, "r");
   if (arquivo == NULL) {
     fprintf(stderr, "Erro ao abrir o arquivo %s\n", nome_arquivo);
     return NULL;
@@ -14,7 +14,7 @@ char *ler_arquivo(const char *nome_arquivo) {
   long tamanho_arquivo = ftell(arquivo);
   rewind(arquivo);
 
-  char *conteudo = (char *)malloc((tamanho_arquivo + 1) * sizeof(char));
+  char *conteudo = (char *)malloc((tamanho_arquivo + 2) * sizeof(char));
   if (conteudo == NULL) {
     fprintf(stderr, "Erro ao alocar memória\n");
     fclose(arquivo);
@@ -28,21 +28,31 @@ char *ler_arquivo(const char *nome_arquivo) {
     fclose(arquivo);
     return NULL;
   }
+  if (lido == 0) {
+    fprintf(stderr, "Erro, arquivo vazio\n");
+    free(conteudo);
+    fclose(arquivo);
+    return NULL;
+  }
 
-  conteudo[tamanho_arquivo] = '\0';
+  conteudo[tamanho_arquivo] = ' ';
+  conteudo[tamanho_arquivo + 1] = '\0';
 
   fclose(arquivo);
 
   return conteudo;
 }
 
-int main() {
-  printf("primeiro\n");
-  fflush(stdout);
-  char *entrada = ler_arquivo("teste.txt");
-  printf("segundo\n");
-  fflush(stdout);
+int main(int argc, char *argv[]) {
+  if (argc < 2) {
+    fprintf(stderr, "Uso: %s <nome_do_arquivo>\n", argv[0]);
+    return EXIT_FAILURE;
+  }
+  char *entrada = ler_arquivo(argv[1]);
+  if (entrada == NULL) {
+    return EXIT_FAILURE;
+  }
   inicia(entrada);
 
-  return 0;
+  return EXIT_SUCCESS;
 }
