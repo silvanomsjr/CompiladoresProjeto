@@ -109,6 +109,8 @@ int transicao(int estado, char simbolo) {
       return 9; // Continua número float
     return 0;   // Finaliza número float
   case 11:
+    if (simbolo == '*')
+      return 11;
     return 0; // Operador Matematico
   case 12:
     return 0; // Finaliza Comentario

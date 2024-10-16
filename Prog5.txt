@@ -1,0 +1,23 @@
+main prog1
+begin
+    { Programa com erro sintatico }
+    int: x1, x2; 
+    float : media;
+    char: parecer, recuperacao;
+
+    x1:=2;
+    x2 := (4 ** 2);
+    media :=(x1 + x2)/2;
+
+    { avalia a media }
+    if (media >= 6)  then
+      begin
+        parecer := 'A';
+        recuperacao := 'N';
+      end
+    else
+    begin
+        parecer := 'R';
+        recuperacao := 'S';
+    end
+end
